@@ -18,7 +18,7 @@ Current feature set:
     Delete/Backspace removes the current selection
   - Track-name popup when adding a track
 """
-
+import ctypes
 import json
 import os
 import sys
@@ -340,7 +340,9 @@ class DrumTrack:
 class PianoRollApp:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("pysynth — piano roll")
+        pygame.display.set_caption("OctaveTone")
+        icon = pygame.image.load(r"C:\Users\flaplant7086\PycharmProjects\DAW-Project-main\MusicApp.ico")
+        pygame.display.set_icon(icon)
 
         pygame.mixer.init(
             frequency=44100,
@@ -360,7 +362,28 @@ class PianoRollApp:
 
         self.windowed_size = (DEFAULT_WINDOW_W, DEFAULT_WINDOW_H)
         self.fullscreen = False
-        self.screen = pygame.display.set_mode(self.windowed_size, pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode(
+            self.windowed_size,
+            pygame.RESIZABLE
+        )
+
+        # Windows dark title bar
+        import ctypes
+
+        wm_info = pygame.display.get_wm_info()
+        hwnd = wm_info.get("window")
+
+        if hwnd:
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            value = ctypes.c_int(1)
+
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ctypes.byref(value),
+                ctypes.sizeof(value)
+            )
+
         self.clock = pygame.time.Clock()
 
         self.font = pygame.font.SysFont("Arial", 12)

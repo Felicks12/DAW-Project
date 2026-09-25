@@ -1,6 +1,14 @@
 numpy
 sounddevice
+<<<<<<< HEAD
 mido
 python-rtmidi
 pynput
 pygame
+=======
+soundfile
+mido
+python-rtmidi
+pynput
+pygame
+>>>>>>> 8072fbe (Initial commit)

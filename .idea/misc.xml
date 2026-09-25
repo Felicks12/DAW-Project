@@ -3,4 +3,8 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.13 (FLReplica)" />
   </component>
+<<<<<<< HEAD
+=======
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.12 virtualenv at C:\Users\flaplant7086\PycharmProjects\DAW-Project-main\.venv" project-jdk-type="Python SDK" />
+>>>>>>> 8072fbe (Initial commit)
 </project>
