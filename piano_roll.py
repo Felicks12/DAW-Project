@@ -1,23 +1,3 @@
-"""
-piano_roll.py
-
-Piano-roll GUI for the synth engine.
-
-Current feature set:
-  - 16th-note grid snapping and visible measure/beat/8th/16th subdivisions
-  - Track / Instrument dropdown arrows, hierarchical instrument browser
-  - Right-click a track in the Tracks dropdown for a Settings / Delete popup
-  - Per-track Bass / Mid / Treble sliders (with a redline boost zone and a
-    live level meter) in the track Settings popup
-  - Pause keeps the playhead visible
-  - Reliable BPM text entry
-  - Save / Load .pysynth project files with naming (native file dialogs)
-  - Note audition when placing/moving notes
-  - Notes placed near an existing note auto-shrink instead of overlapping
-  - Shift + drag: marquee-select multiple notes; Ctrl+C / Ctrl+V to copy/paste;
-    Delete/Backspace removes the current selection
-  - Track-name popup when adding a track
-"""
 import ctypes
 import json
 import os
@@ -71,6 +51,10 @@ TRACK_PANEL_W = 190
 INSTR_PANEL_W = 190
 SUB_INSTR_PANEL_W = 190
 CONTEXT_MENU_W = 150
+
+MASTER_VOLUME_W = 110
+MASTER_VOLUME_H = 18
+MASTER_VOLUME_X_MARGIN = 62
 
 BG_COLOR = (30, 30, 34)
 TOOLBAR_COLOR = (24, 24, 27)
@@ -249,6 +233,9 @@ class Track:
         self.is_drum = False
         self.drum_part = None
 
+        self.muted = False
+        self.solo = False
+
 # ---------------------------------------------------------------------------
 # Audio
 # ---------------------------------------------------------------------------
@@ -263,7 +250,23 @@ def start_audio(app):
             dtype=np.float32
         )
 
-        for track in list(app.tracks):
+        tracks = list(app.tracks)
+
+        has_solo = any(
+            getattr(track, "solo", False)
+            for track in tracks
+        )
+
+        for track in tracks:
+
+            # Muted tracks produce no output.
+            if getattr(track, "muted", False):
+                continue
+
+            # If any track is isolated/soloed,
+            # only solo tracks are heard.
+            if has_solo and not getattr(track, "solo", False):
+                continue
 
             raw = track.engine.render(frames)
 
@@ -271,6 +274,8 @@ def start_audio(app):
                 mix += raw
             else:
                 mix += track.eq.process(raw)
+
+        mix *= app.master_volume
 
         mix = np.clip(
             mix,
@@ -332,6 +337,9 @@ class DrumTrack:
             master_volume=0.3,
             sample_root=sample_root
         )
+
+        self.muted = False
+        self.solo = False
 
 # ---------------------------------------------------------------------------
 # Application
@@ -407,6 +415,21 @@ class PianoRollApp:
 
         self.num_measures = INITIAL_MEASURES
         self.bpm = 120
+
+        self.dragging_master_volume = False
+
+        # Master output controls
+        self.master_volume = 1.0
+
+        # Metronome
+        self.metronome_enabled = False
+
+        # Playhead dragging
+        self.dragging_playhead = False
+
+        # Tap BPM
+        self.tap_times = []
+
 
         self.playing = False
         self.play_pos_seconds = 0.0
@@ -546,6 +569,99 @@ class PianoRollApp:
             t.engine.all_notes_off()
             t.sounding.clear()
 
+    def master_volume_rect(self):
+        return pygame.Rect(
+            self.viewport_w - 175,
+            13,
+            MASTER_VOLUME_W,
+            MASTER_VOLUME_H
+        )
+
+    def update_master_volume_from_mouse(self, pos):
+        rect = self.master_volume_rect()
+
+        x = max(rect.left, min(rect.right, pos[0]))
+        self.master_volume = (
+                (x - rect.left) / rect.width
+        )
+
+        self.master_volume = max(
+            0.0,
+            min(1.0, self.master_volume)
+        )
+
+    def draw_master_volume(self):
+        rect = self.master_volume_rect()
+
+        # Label
+        label = self.font_small.render(
+            "Master",
+            True,
+            MUTED_TEXT
+        )
+
+        self.screen.blit(
+            label,
+            (
+                rect.x,
+                rect.y - 2
+            )
+        )
+
+        slider = pygame.Rect(
+            rect.x + 42,
+            rect.y + 5,
+            rect.width - 42,
+            8
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (55, 55, 60),
+            slider,
+            border_radius=4
+        )
+
+        fill = pygame.Rect(
+            slider.x,
+            slider.y,
+            int(slider.width * self.master_volume),
+            slider.height
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (90, 160, 220),
+            fill,
+            border_radius=4
+        )
+
+        handle_x = int(
+            slider.x +
+            slider.width * self.master_volume
+        )
+
+        pygame.draw.circle(
+            self.screen,
+            TEXT_COLOR,
+            (handle_x, slider.centery),
+            6
+        )
+
+        percent = self.font_small.render(
+            f"{int(self.master_volume * 100)}%",
+            True,
+            MUTED_TEXT
+        )
+
+        self.screen.blit(
+            percent,
+            (
+                rect.right - percent.get_width(),
+                rect.bottom + 3
+            )
+        )
+
     def build_toolbar(self):
         x = 8
         y = 10
@@ -635,7 +751,7 @@ class PianoRollApp:
 
         x, y = self.track_context_menu["pos"]
         w = CONTEXT_MENU_W
-        h = DROPDOWN_ROW_H + 8
+        h = DROPDOWN_ROW_H * 4 + 8
 
         x = min(x, self.viewport_w - w - 4)
         y = min(y, self.viewport_h - h - 4)
@@ -654,6 +770,7 @@ class PianoRollApp:
             rect,
             border_radius=4
         )
+
         pygame.draw.rect(
             self.screen,
             DROPDOWN_BORDER,
@@ -661,51 +778,134 @@ class PianoRollApp:
             1,
             border_radius=4
         )
+
         mouse_pos = pygame.mouse.get_pos()
-        delete_row = pygame.Rect(
-            rect.x + 4,
-            rect.y + 4,
-            rect.width - 8,
-            DROPDOWN_ROW_H
-        )
-        can_delete = len(self.tracks) > 1
-        if can_delete and delete_row.collidepoint(mouse_pos):
-            pygame.draw.rect(
-                self.screen,
-                DROPDOWN_HOVER,
-                delete_row
+        idx = self.track_context_menu["index"]
+
+        if idx >= len(self.tracks):
+            self.track_context_menu = None
+            return
+
+        track = self.tracks[idx]
+
+        rows = [
+            ("Mute Track", track.muted),
+            ("Isolate Track", track.solo),
+            ("Track Settings", False),
+            ("Delete Track", False),
+        ]
+
+        for i, (label, active) in enumerate(rows):
+
+            row = pygame.Rect(
+                rect.x + 4,
+                rect.y + 4 + i * DROPDOWN_ROW_H,
+                rect.width - 8,
+                DROPDOWN_ROW_H
             )
-        delete_color = (210, 120, 120) if can_delete else MUTED_TEXT
-        delete_label = self.font.render(
-            "Delete Track",
-            True,
-            delete_color
-        )
-        self.screen.blit(
-            delete_label,
-            (
-                delete_row.x + 6,
-                delete_row.y + (delete_row.height - delete_label.get_height()) // 2
+
+            if row.collidepoint(mouse_pos):
+                pygame.draw.rect(
+                    self.screen,
+                    DROPDOWN_HOVER,
+                    row
+                )
+
+            if active:
+                color = (110, 190, 120)
+                label = "✓ " + label
+            elif label == "Delete Track":
+                color = (210, 120, 120)
+            else:
+                color = TEXT_COLOR
+
+            text = self.font.render(
+                label,
+                True,
+                color
             )
-        )
+
+            self.screen.blit(
+                text,
+                (
+                    row.x + 6,
+                    row.y + (
+                            row.height -
+                            text.get_height()
+                    ) // 2
+                )
+            )
 
     def handle_track_context_menu_click(self, pos):
         rect = self.track_context_menu_rect()
+
+        if self.track_context_menu is None:
+            return
+
         idx = self.track_context_menu["index"]
+
+        if idx >= len(self.tracks):
+            self.track_context_menu = None
+            return
 
         if not rect.collidepoint(pos):
             self.track_context_menu = None
             return
 
-        delete_row = pygame.Rect(
-            rect.x + 4,
-            rect.y + 4,
-            rect.width - 8,
-            DROPDOWN_ROW_H
-        )
+        track = self.tracks[idx]
 
-        if delete_row.collidepoint(pos) and len(self.tracks) > 1:
-            self.tracks[idx].engine.all_notes_off()
+        rows = {
+            "mute": pygame.Rect(
+                rect.x + 4,
+                rect.y + 4,
+                rect.width - 8,
+                DROPDOWN_ROW_H
+            ),
+
+            "solo": pygame.Rect(
+                rect.x + 4,
+                rect.y + 4 + DROPDOWN_ROW_H,
+                rect.width - 8,
+                DROPDOWN_ROW_H
+            ),
+
+            "settings": pygame.Rect(
+                rect.x + 4,
+                rect.y + 4 + DROPDOWN_ROW_H * 2,
+                rect.width - 8,
+                DROPDOWN_ROW_H
+            ),
+
+            "delete": pygame.Rect(
+                rect.x + 4,
+                rect.y + 4 + DROPDOWN_ROW_H * 3,
+                rect.width - 8,
+                DROPDOWN_ROW_H
+            ),
+        }
+
+        if rows["mute"].collidepoint(pos):
+            track.muted = not track.muted
+            self.track_context_menu = None
+            return
+
+        if rows["solo"].collidepoint(pos):
+            track.solo = not track.solo
+            self.track_context_menu = None
+            return
+
+        if rows["settings"].collidepoint(pos):
+            self.track_settings_index = idx
+            self.show_track_settings = True
+            self.track_context_menu = None
+            return
+
+        if (
+                rows["delete"].collidepoint(pos)
+                and len(self.tracks) > 1
+        ):
+            track.engine.all_notes_off()
+
             del self.tracks[idx]
 
             if self.current_track_index >= len(self.tracks):
@@ -715,6 +915,7 @@ class PianoRollApp:
 
             self.selected_notes = set()
             self.track_context_menu = None
+
             self.update_toolbar_labels()
             return
 
@@ -959,20 +1160,37 @@ class PianoRollApp:
     def commit_track_naming(self):
         name = self.track_name_input.strip()
 
-        # Don't create a track with an empty name.
         if not name:
             name = f"Track {len(self.tracks) + 1}"
 
-        # Try to copy the setup of the current track.
         current_track = self.tracks[self.current_track_index]
 
-        new_track = type(current_track)(
-            name=name,
-            instrument=current_track.instrument,
-            sound=current_track.sound,
-        )
+        # Never use DrumTrack as the constructor for a new
+        # normal instrument track.
+        if getattr(current_track, "is_drum_track", False):
+
+            new_track = Track(
+                name=name,
+                waveform="saw",
+                instrument="Piano",
+                sound="Grand Piano",
+            )
+
+        else:
+
+            new_track = Track(
+                name=name,
+                waveform=getattr(
+                    current_track.engine,
+                    "waveform_name",
+                    "saw"
+                ),
+                instrument=current_track.instrument,
+                sound=current_track.sound,
+            )
 
         self.tracks.append(new_track)
+
         self.current_track_index = len(self.tracks) - 1
         self.selected_notes = set()
 
@@ -1342,6 +1560,17 @@ class PianoRollApp:
                     self.update_slider_from_mouse(pos)
                     return
 
+            add_row = pygame.Rect(
+                panel.x,
+                panel.y + 4 + len(self.tracks) * DROPDOWN_ROW_H,
+                panel.width,
+                DROPDOWN_ROW_H
+            )
+
+            if add_row.collidepoint(pos) and button == 1:
+                self.open_track_naming()
+                return
+
             return
 
         # --------------------------------------------------------------
@@ -1495,6 +1724,20 @@ class PianoRollApp:
                         self.update_toolbar_labels()
                         return
 
+                # ----------------------------------------------------------
+                # ADD TRACK
+                # ----------------------------------------------------------
+                add_row = pygame.Rect(
+                    panel.x,
+                    panel.y + 4 + len(self.tracks) * DROPDOWN_ROW_H,
+                    panel.width,
+                    DROPDOWN_ROW_H
+                )
+
+                if add_row.collidepoint(pos) and button == 1:
+                    self.open_track_naming()
+                    return
+
             return
 
         if self.show_instr_dropdown:
@@ -1536,6 +1779,14 @@ class PianoRollApp:
 
             self.show_instr_dropdown = False
             self.hovered_instrument_category = None
+            return
+
+        # --------------------------------------------------------------
+        # Master volume
+        # --------------------------------------------------------------
+        if button == 1 and self.master_volume_rect().collidepoint(pos):
+            self.dragging_master_volume = True
+            self.update_master_volume_from_mouse(pos)
             return
 
         # --------------------------------------------------------------
@@ -1721,6 +1972,8 @@ class PianoRollApp:
 
     def handle_mouse_up(self, pos, button):
         if button == 1:
+            self.dragging_master_volume = False
+
             if self.dragging_slider is not None:
                 self.dragging_slider = None
 
@@ -1857,6 +2110,10 @@ class PianoRollApp:
 
     def handle_mouse_motion(self, pos):
         x, y = pos
+
+        if self.dragging_master_volume:
+            self.update_master_volume_from_mouse(pos)
+            return
 
         if self.dragging_slider is not None:
             self.update_slider_from_mouse(pos)
@@ -2555,6 +2812,8 @@ class PianoRollApp:
         self.btn_tracks.draw(self.screen, self.font, active=self.show_tracks_dropdown, active_color=BTN_HELP_ACTIVE)
         self.btn_instr.draw(self.screen, self.font, active=self.show_instr_dropdown, active_color=BTN_HELP_ACTIVE)
         self.draw_gear_button()
+
+        self.draw_master_volume()
 
         box_color = INPUT_BOX_EDITING if self.editing_bpm else INPUT_BOX_COLOR
         pygame.draw.rect(self.screen, box_color, self.bpm_box, border_radius=4)
