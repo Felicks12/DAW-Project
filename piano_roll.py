@@ -426,6 +426,7 @@ class PianoRollApp:
 
         # Playhead dragging
         self.dragging_playhead = False
+        self.playhead_step = 0.0
 
         # Tap BPM
         self.tap_times = []
@@ -433,6 +434,7 @@ class PianoRollApp:
 
         self.playing = False
         self.play_pos_seconds = 0.0
+        self.playhead_step = 0.0
 
         self.preview_pitch = None
         self.grid_preview_pitch = None
@@ -692,6 +694,30 @@ class PianoRollApp:
 
     def step_to_screen_x(self, step):
         return KEY_AREA_WIDTH + step * self.step_width - self.scroll_x
+
+    def set_playhead_from_mouse(self, mouse_x):
+        step = self.screen_x_to_step(mouse_x)
+        step = max(0.0, min(step, self.total_steps))
+
+        self.playhead_step = step
+        self.play_pos_seconds = step * self.seconds_per_step
+        self.playhead_visual_time = self.play_pos_seconds
+
+        # If playback is running, move its clock to the new position too.
+        if self.playing:
+            self.playback_start_time = (
+                    time.perf_counter() - self.play_pos_seconds
+            )
+
+            # Stop notes that were sounding at the old position.
+            for track in self.tracks:
+                track.engine.all_notes_off()
+
+                if hasattr(track, "sounding"):
+                    track.sounding.clear()
+
+            # Allow playback to trigger notes at the new step.
+            self.last_playback_step = int(step) - 1
 
     def screen_y_to_row(self, y):
         return int((y - GRID_Y + self.scroll_y) // ROW_HEIGHT)
@@ -1838,6 +1864,30 @@ class PianoRollApp:
             return
 
         # --------------------------------------------------------------
+        # Playhead ruler click / drag
+        # --------------------------------------------------------------
+        if (
+                button == 1
+                and TOP_BAR_H <= pos[1] < GRID_Y
+                and pos[0] >= KEY_AREA_WIDTH
+        ):
+            self.dragging_playhead = False
+            self.set_playhead_from_mouse(pos[0])
+            return
+
+        # --------------------------------------------------------------
+        # Playhead click-and-drag in the timeline ruler
+        # --------------------------------------------------------------
+        if (
+                button == 1
+                and TOP_BAR_H <= pos[1] < GRID_Y
+                and pos[0] >= KEY_AREA_WIDTH
+        ):
+            self.dragging_playhead = True
+            self.set_playhead_from_mouse(pos[0])
+            return
+
+        # --------------------------------------------------------------
         # BPM / toolbar area
         # --------------------------------------------------------------
         if pos[1] < GRID_Y:
@@ -1973,6 +2023,7 @@ class PianoRollApp:
     def handle_mouse_up(self, pos, button):
         if button == 1:
             self.dragging_master_volume = False
+            self.dragging_playhead = False
 
             if self.dragging_slider is not None:
                 self.dragging_slider = None
@@ -2110,6 +2161,14 @@ class PianoRollApp:
 
     def handle_mouse_motion(self, pos):
         x, y = pos
+
+        if self.dragging_playhead:
+            self.set_playhead_from_mouse(x)
+            return
+
+        if self.dragging_playhead:
+            self.set_playhead_from_mouse(x)
+            return
 
         if self.dragging_master_volume:
             self.update_master_volume_from_mouse(pos)
@@ -2594,15 +2653,17 @@ class PianoRollApp:
         self.playing = not self.playing
 
         if self.playing:
-            # Start the playback clock after the startup delay.
+            # Start from the current playhead position.
+            start_seconds = self.playhead_step * self.seconds_per_step
+
             self.playback_start_time = (
-                    time.perf_counter() + self.playhead_delay
+                    time.perf_counter()
+                    + self.playhead_delay
+                    - start_seconds
             )
 
-            # Force step 0 to trigger when playback actually begins.
-            self.last_playback_step = -1
-
-            self.play_pos_seconds = 0.0
+            self.last_playback_step = int(self.playhead_step) - 1
+            self.play_pos_seconds = start_seconds
             self.playhead_visual_time = 0.0
 
         else:
@@ -2619,6 +2680,7 @@ class PianoRollApp:
         self.playing = False
         self.play_pos_seconds = 0.0
         self.playhead_visual_time = 0.0
+        self.playhead_step = 0.0
 
         for t in self.tracks:
             t.engine.all_notes_off()
@@ -3280,6 +3342,7 @@ class PianoRollApp:
             if self.playing and self.playhead_visual_time < self.playhead_delay:
                 return
 
+            # --- Playhead position ---
             current_step = (
                 self.playhead_step
                 if self.playing
@@ -3289,12 +3352,41 @@ class PianoRollApp:
             x = self.step_to_screen_x(current_step)
 
             if KEY_AREA_WIDTH <= x <= self.viewport_w:
-                pygame.draw.line(
+                x = int(x)
+
+                # Draw the vertical playhead line during playback,
+                # or when the playhead has moved away from the start.
+                if self.playing or self.play_pos_seconds > 0:
+                    if not (
+                            self.playing
+                            and self.playhead_visual_time < self.playhead_delay
+                    ):
+                        pygame.draw.line(
+                            self.screen,
+                            PLAYHEAD_COLOR,
+                            (x, GRID_Y),
+                            (x, self.viewport_h),
+                            2
+                        )
+
+                # Draw the white downward-pointing playhead marker in the ruler.
+                marker_y = TOP_BAR_H + 2
+                marker_points = [
+                    (x - 7, marker_y),
+                    (x + 7, marker_y),
+                    (x, marker_y + 10),
+                ]
+
+                pygame.draw.polygon(
                     self.screen,
-                    PLAYHEAD_COLOR,
-                    (int(x), GRID_Y),
-                    (int(x), self.viewport_h),
-                    2
+                    (255, 255, 255),
+                    marker_points
+                )
+                pygame.draw.polygon(
+                    self.screen,
+                    (30, 30, 30),
+                    marker_points,
+                    1
                 )
 
     # ------------------------------------------------------------------
@@ -3446,6 +3538,31 @@ class PianoRollApp:
         self.draw_grid()
         self.draw_keyboard()
         self.draw_measure_labels()
+
+        # Draw the playhead triangle on top of the ruler.
+        marker_x = int(self.step_to_screen_x(self.playhead_step))
+        marker_y = TOP_BAR_H + 2
+
+        if KEY_AREA_WIDTH <= marker_x <= self.viewport_w:
+            marker_points = [
+                (marker_x - 7, marker_y),
+                (marker_x + 7, marker_y),
+                (marker_x, marker_y + 10),
+            ]
+
+            pygame.draw.polygon(
+                self.screen,
+                (255, 255, 255),
+                marker_points
+            )
+
+            pygame.draw.polygon(
+                self.screen,
+                (25, 25, 25),
+                marker_points,
+                1
+            )
+
         self.draw_toolbar()
         self.draw_tracks_dropdown()
         self.draw_drum_parts_dropdown()
