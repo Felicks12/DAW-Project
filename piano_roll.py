@@ -579,12 +579,26 @@ class PianoRollApp:
             MASTER_VOLUME_H
         )
 
-    def update_master_volume_from_mouse(self, pos):
+    def master_volume_slider_rect(self):
         rect = self.master_volume_rect()
 
-        x = max(rect.left, min(rect.right, pos[0]))
+        return pygame.Rect(
+            rect.x + 42,
+            rect.y + 5,
+            rect.width - 42,
+            8
+        )
+
+    def update_master_volume_from_mouse(self, pos):
+        slider = self.master_volume_slider_rect()
+
+        x = max(
+            slider.left,
+            min(slider.right - 1, pos[0])
+        )
+
         self.master_volume = (
-                (x - rect.left) / rect.width
+                (x - slider.left) / (slider.width - 1)
         )
 
         self.master_volume = max(
@@ -610,12 +624,7 @@ class PianoRollApp:
             )
         )
 
-        slider = pygame.Rect(
-            rect.x + 42,
-            rect.y + 5,
-            rect.width - 42,
-            8
-        )
+        slider = self.master_volume_slider_rect()
 
         pygame.draw.rect(
             self.screen,
@@ -1810,7 +1819,7 @@ class PianoRollApp:
         # --------------------------------------------------------------
         # Master volume
         # --------------------------------------------------------------
-        if button == 1 and self.master_volume_rect().collidepoint(pos):
+        if button == 1 and self.master_volume_slider_rect().collidepoint(pos):
             self.dragging_master_volume = True
             self.update_master_volume_from_mouse(pos)
             return
@@ -1864,18 +1873,6 @@ class PianoRollApp:
             return
 
         # --------------------------------------------------------------
-        # Playhead ruler click / drag
-        # --------------------------------------------------------------
-        if (
-                button == 1
-                and TOP_BAR_H <= pos[1] < GRID_Y
-                and pos[0] >= KEY_AREA_WIDTH
-        ):
-            self.dragging_playhead = False
-            self.set_playhead_from_mouse(pos[0])
-            return
-
-        # --------------------------------------------------------------
         # Playhead click-and-drag in the timeline ruler
         # --------------------------------------------------------------
         if (
@@ -1906,6 +1903,15 @@ class PianoRollApp:
                     self.preview_pitch = pitch
                     self.preview_grid_note(pitch)
 
+                return
+
+        # --------------------------------------------------------------
+        # Playhead ruler — click or grab the playhead triangle
+        # --------------------------------------------------------------
+        if button == 1 and TOP_BAR_H <= pos[1] < GRID_Y:
+            if pos[0] >= KEY_AREA_WIDTH:
+                self.dragging_playhead = True
+                self.set_playhead_from_mouse(pos[0])
                 return
 
         # --------------------------------------------------------------
@@ -2161,10 +2167,6 @@ class PianoRollApp:
 
     def handle_mouse_motion(self, pos):
         x, y = pos
-
-        if self.dragging_playhead:
-            self.set_playhead_from_mouse(x)
-            return
 
         if self.dragging_playhead:
             self.set_playhead_from_mouse(x)
@@ -2840,23 +2842,19 @@ class PianoRollApp:
         # ----------------------------------------------------------
         # KEEP PLAYHEAD VISIBLE
         # ----------------------------------------------------------
-        playhead_x = (
-                self.step_to_screen_x(
-                    self.playhead_step
-                )
-                + 1000
-        )
+        playhead_x = self.step_to_screen_x(self.playhead_step)
 
         if (
                 playhead_x < KEY_AREA_WIDTH
                 or playhead_x > self.viewport_w - 150
         ):
+            target_scroll = int(
+                self.playhead_step * self.step_width - 100
+            )
+
             self.scroll_x = max(
                 0,
-                min(
-                    self.playhead_step * self.step_width - 100,
-                    self.max_scroll_x
-                )
+                min(target_scroll, self.max_scroll_x)
             )
 
     # ---------------------------------
