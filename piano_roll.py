@@ -104,6 +104,17 @@ METER_BG = (40, 40, 46)
 METER_OK_COLOR = (95, 180, 110)
 METER_HOT_COLOR = (220, 90, 90)
 
+TIME_SIGNATURES = [
+            (2, 4),
+            (3, 4),
+            (4, 4),
+            (5, 4),
+            (6, 8),
+            (7, 8),
+            (9, 8),
+            (12, 8),
+        ]
+
 INSTRUMENTS = {
     "Piano": ["Grand Piano", "Bright Piano", "Electric Piano", "Honky Tonk"],
     "Guitar": ["Classic Guitar", "Electric Guitar", "Spanish Guitar", "Acoustic Guitar"],
@@ -236,6 +247,8 @@ class Track:
         self.muted = False
         self.solo = False
 
+        self.time_signature = (4, 4)
+
 # ---------------------------------------------------------------------------
 # Audio
 # ---------------------------------------------------------------------------
@@ -252,20 +265,17 @@ def start_audio(app):
 
         tracks = list(app.tracks)
 
-        has_solo = any(
-            getattr(track, "solo", False)
-            for track in tracks
-        )
+        isolated_index = getattr(app, "isolated_track_index", None)
 
-        for track in tracks:
+        for track_index, track in enumerate(tracks):
 
-            # Muted tracks produce no output.
+            # Mute only affects the individual track.
             if getattr(track, "muted", False):
                 continue
 
-            # If any track is isolated/soloed,
-            # only solo tracks are heard.
-            if has_solo and not getattr(track, "solo", False):
+            # Isolate affects the whole mix: when one track is isolated,
+            # every other track is silent.
+            if isolated_index is not None and track_index != isolated_index:
                 continue
 
             raw = track.engine.render(frames)
@@ -341,6 +351,8 @@ class DrumTrack:
         self.muted = False
         self.solo = False
 
+        self.time_signature = (4, 4)
+
 # ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
@@ -399,6 +411,9 @@ class PianoRollApp:
         self.font_title = pygame.font.SysFont("Arial", 15, bold=True)
 
         self.current_track_index = 0
+        # None = no track isolated. Otherwise this is the index of the
+        # single track that is allowed to play while isolation is active.
+        self.isolated_track_index = None
 
         self.tracks = [Track(waveform="saw")]
 
@@ -466,6 +481,8 @@ class PianoRollApp:
         self.show_track_settings = False
         self.track_settings_index = None
         self.dragging_slider = None        # {"index": i, "band": "bass"|"mid"|"treble"}
+
+        self.show_time_signature_dropdown = False
 
         self.naming_track = False
         self.track_name_input = ""
@@ -825,7 +842,7 @@ class PianoRollApp:
 
         rows = [
             ("Mute Track", track.muted),
-            ("Isolate Track", track.solo),
+            ("Isolate Track", self.isolated_track_index == idx),
             ("Track Settings", False),
             ("Delete Track", False),
         ]
@@ -920,12 +937,59 @@ class PianoRollApp:
         }
 
         if rows["mute"].collidepoint(pos):
+            # Mute and Isolate are mutually exclusive. If isolation is active,
+            # clicking Mute exits isolation before changing the mute state.
+            if self.isolated_track_index is not None:
+                self.isolated_track_index = None
+
             track.muted = not track.muted
+
+            if track.muted:
+                track.engine.all_notes_off()
+                if hasattr(track, "sounding"):
+                    track.sounding.clear()
+
             self.track_context_menu = None
             return
 
         if rows["solo"].collidepoint(pos):
-            track.solo = not track.solo
+            # Isolate is exclusive: this track is unmuted and every other
+            # track is automatically muted. Only this track is isolated.
+            if self.isolated_track_index == idx:
+                # Turn isolation off.
+                self.isolated_track_index = None
+
+                # Unmute every track.
+                for t in self.tracks:
+                    t.muted = False
+                    t.engine.all_notes_off()
+                    if hasattr(t, "sounding"):
+                        t.sounding.clear()
+
+            else:
+                # Isolate this track.
+                self.isolated_track_index = idx
+
+                # Unmute the isolated track and mute everything else.
+                for track_index, t in enumerate(self.tracks):
+                    t.muted = (track_index != idx)
+
+                    if t.muted:
+                        t.engine.all_notes_off()
+                        if hasattr(t, "sounding"):
+                            t.sounding.clear()
+
+                for track_index, t in enumerate(self.tracks):
+                    if track_index == idx:
+                        # A track cannot be both isolated and muted.
+                        t.muted = False
+                    else:
+                        # Isolating this track automatically mutes every other track.
+                        t.muted = True
+                        t.engine.all_notes_off()
+                        if hasattr(t, "sounding"):
+                            t.sounding.clear()
+
             self.track_context_menu = None
             return
 
@@ -956,12 +1020,23 @@ class PianoRollApp:
 
         self.track_context_menu = None
 
+    def get_track_steps_per_measure(self, track):
+        numerator, denominator = track.time_signature
+
+        if denominator == 4:
+            return numerator * STEPS_PER_BEAT
+
+        if denominator == 8:
+            return numerator * 2
+
+        return STEPS_PER_MEASURE
+
     # ------------------------------------------------------------------
     # Track settings popup (Bass / Mid / Treble)
     # ------------------------------------------------------------------
 
     def track_settings_panel_rect(self):
-        w, h = 380, 320
+        w, h = 380, 380
         return pygame.Rect((self.viewport_w - w) // 2, (self.viewport_h - h) // 2, w, h)
 
     def track_settings_slider_rects(self):
@@ -3058,6 +3133,51 @@ class PianoRollApp:
             )
         )
 
+        # Time signature
+        ts_label = self.font.render("Time Signature", True, TEXT_COLOR)
+        self.screen.blit(
+            ts_label,
+            (panel.x + 18, panel.bottom - 92)
+        )
+
+        ts_rect = pygame.Rect(
+            panel.x + 150,
+            panel.bottom - 100,
+            90,
+            32
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            BTN_COLOR,
+            ts_rect,
+            border_radius=4
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (10, 10, 10),
+            ts_rect,
+            1,
+            border_radius=4
+        )
+
+        numerator, denominator = track.time_signature
+
+        ts_text = self.font.render(
+            f"{numerator}/{denominator}",
+            True,
+            TEXT_COLOR
+        )
+
+        self.screen.blit(
+            ts_text,
+            (
+                ts_rect.centerx - ts_text.get_width() // 2,
+                ts_rect.centery - ts_text.get_height() // 2
+            )
+        )
+
         hint = self.font_small.render(
             "Right-click a track for settings / delete",
             True,
@@ -3180,6 +3300,9 @@ class PianoRollApp:
 
             pygame.draw.line(self.screen, GRID_LINE, (KEY_AREA_WIDTH, int(y)), (self.viewport_w, int(y)), 1)
 
+        current_track = self.tracks[self.current_track_index]
+        steps_per_measure = self.get_track_steps_per_measure(current_track)
+
         visible_start_step = max(0, int(self.scroll_x / self.step_width) - 2)
         visible_end_step = min(self.total_steps, int((self.scroll_x + self.viewport_w - KEY_AREA_WIDTH) / self.step_width) + 2)
 
@@ -3197,7 +3320,7 @@ class PianoRollApp:
             if x < KEY_AREA_WIDTH or x > self.viewport_w:
                 continue
 
-            if step % STEPS_PER_MEASURE == 0:
+            if step % steps_per_measure == 0:
                 pygame.draw.line(self.screen, MEASURE_LINE, (int(x), GRID_Y), (int(x), self.viewport_h), 2)
                 continue
 
