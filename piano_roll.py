@@ -360,7 +360,7 @@ class DrumTrack:
 class PianoRollApp:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("OctaveTone")
+        pygame.display.set_caption("CS Sound")
         icon = pygame.image.load(r"C:\Users\flaplant7086\PycharmProjects\DAW-Project-main\MusicApp.ico")
         pygame.display.set_icon(icon)
 
@@ -842,7 +842,7 @@ class PianoRollApp:
 
         rows = [
             ("Mute Track", track.muted),
-            ("Isolate Track", self.isolated_track_index == idx),
+            ("Solo Track", self.isolated_track_index == idx),
             ("Track Settings", False),
             ("Delete Track", False),
         ]
@@ -1127,6 +1127,51 @@ class PianoRollApp:
             self.screen.blit(label, (rect.centerx - label.get_width() // 2, rect.bottom + 10))
             pct = self.font_small.render(f"{int(gain * 100)}%", True, MUTED_TEXT)
             self.screen.blit(pct, (rect.centerx - pct.get_width() // 2, rect.bottom + 28))
+
+        # Time signature
+        ts_label = self.font.render("Time Signature", True, TEXT_COLOR)
+        self.screen.blit(
+            ts_label,
+            (panel.x + 18, panel.top + 50)
+        )
+
+        ts_rect = pygame.Rect(
+            panel.x + 300,
+            panel.top + 45,
+            50,
+            25
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            BTN_COLOR,
+            ts_rect,
+            border_radius=4
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (10, 10, 10),
+            ts_rect,
+            1,
+            border_radius=4
+        )
+
+        numerator, denominator = track.time_signature
+
+        ts_text = self.font.render(
+            f"{numerator}/{denominator}",
+            True,
+            TEXT_COLOR
+        )
+
+        self.screen.blit(
+            ts_text,
+            (
+                ts_rect.centerx - ts_text.get_width() // 2,
+                ts_rect.centery - ts_text.get_height() // 2
+            )
+        )
 
         hint = self.font_small.render("Drag a slider — the red zone above center boosts (watch for CLIP).", True, MUTED_TEXT)
         self.screen.blit(hint, (panel.x + 18, panel.bottom - 26))
@@ -3130,51 +3175,6 @@ class PianoRollApp:
             (
                 add_row.x + 8,
                 add_row.y + (add_row.height - add_label.get_height()) // 2
-            )
-        )
-
-        # Time signature
-        ts_label = self.font.render("Time Signature", True, TEXT_COLOR)
-        self.screen.blit(
-            ts_label,
-            (panel.x + 18, panel.bottom - 92)
-        )
-
-        ts_rect = pygame.Rect(
-            panel.x + 150,
-            panel.bottom - 100,
-            90,
-            32
-        )
-
-        pygame.draw.rect(
-            self.screen,
-            BTN_COLOR,
-            ts_rect,
-            border_radius=4
-        )
-
-        pygame.draw.rect(
-            self.screen,
-            (10, 10, 10),
-            ts_rect,
-            1,
-            border_radius=4
-        )
-
-        numerator, denominator = track.time_signature
-
-        ts_text = self.font.render(
-            f"{numerator}/{denominator}",
-            True,
-            TEXT_COLOR
-        )
-
-        self.screen.blit(
-            ts_text,
-            (
-                ts_rect.centerx - ts_text.get_width() // 2,
-                ts_rect.centery - ts_text.get_height() // 2
             )
         )
 
