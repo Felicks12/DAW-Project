@@ -18,18 +18,12 @@ import soundfile as sf
 
 SAMPLE_RATE = 44100
 
-
-# ==============================================================
 # MIDI / frequency
-# ==============================================================
 
 def midi_note_to_freq(note: int) -> float:
     return 440.0 * (2.0 ** ((note - 69) / 12.0))
 
-
-# ==============================================================
 # Oscillators
-# ==============================================================
 
 def osc_sine(phase):
     return np.sin(2 * np.pi * phase)
@@ -48,7 +42,6 @@ def osc_triangle(phase):
         2.0 * (phase - np.floor(phase + 0.5))
     ) - 1.0
 
-
 WAVEFORMS = {
     "sine": osc_sine,
     "square": osc_square,
@@ -56,22 +49,7 @@ WAVEFORMS = {
     "triangle": osc_triangle,
 }
 
-
-# ==============================================================
 # Instrument definitions
-# ==============================================================
-
-# These are the folders the engine will look for.
-#
-# Example:
-#
-# Samples/
-#   piano/
-#       60.wav
-#       64.wav
-#       67.wav
-#
-# The filenames are MIDI note numbers.
 
 SAMPLE_INSTRUMENTS = {
     "piano": "Piano",
@@ -99,9 +77,7 @@ class PianoSample:
         """Return up to n samples from the piano recording."""
         return self.samples[:n]
 
-# ==============================================================
 # ADSR
-# ==============================================================
 
 class ADSR:
     def __init__(
@@ -200,10 +176,7 @@ class ADSR:
 
         return out
 
-
-# ==============================================================
 # Sample loading
-# ==============================================================
 
 class Sample:
     def __init__(self, data, sample_rate=SAMPLE_RATE):
@@ -303,9 +276,7 @@ def load_wav_file(path):
 
     return Sample(data, sample_rate)
 
-# ==============================================================
 # Voice
-# ==============================================================
 
 class Voice:
     def __init__(
@@ -473,9 +444,7 @@ class DrumVoice:
 
         return out
 
-# ==============================================================
 # SynthEngine
-# ==============================================================
 
 class SynthEngine:
     def __init__(
@@ -905,9 +874,7 @@ class SynthEngine:
 
         return mix
 
-# ==============================================================
 # Three-band EQ
-# ==============================================================
 
 class ThreeBandEQ:
     """
@@ -1022,7 +989,6 @@ class ThreeBandEQ:
         )
 
         return out.astype(np.float32)
-
 
 if __name__ == "__main__":
     engine = SynthEngine()
