@@ -637,7 +637,7 @@ class PianoRollApp:
             label,
             (
                 rect.x,
-                rect.y - 2
+                rect.y + 3
             )
         )
 
@@ -865,7 +865,7 @@ class PianoRollApp:
 
             if active:
                 color = (110, 190, 120)
-                label = "✓ " + label
+                label = "" + label
             elif label == "Delete Track":
                 color = (210, 120, 120)
             else:
