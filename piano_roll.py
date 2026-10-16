@@ -500,6 +500,8 @@ class PianoRollApp:
         self.running = True
         self.build_toolbar()
 
+        self.NUM = 1
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -1316,7 +1318,8 @@ class PianoRollApp:
         name = self.track_name_input.strip()
 
         if not name:
-            name = f"Track {len(self.tracks) + 1}"
+            self.NUM += 1
+            name = f"Track {self.NUM}"
 
         current_track = self.tracks[self.current_track_index]
 
