@@ -5,7 +5,7 @@ a = Analysis(
     ['piano_roll.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('Samples', 'Samples'), ('MusicApp.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

@@ -10,11 +10,15 @@ Core polyphonic synthesizer engine:
 """
 
 import math
-
+import sys
 import os
 import numpy as np
 import threading
 import soundfile as sf
+
+def resource_path(relative):
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative)
 
 SAMPLE_RATE = 44100
 
@@ -475,12 +479,7 @@ class SynthEngine:
         # ----------------------------------------------------------
 
         if sample_root is None:
-            sample_root = os.path.join(
-                os.path.dirname(
-                    os.path.abspath(__file__)
-                ),
-                "Samples"
-            )
+            sample_root = resource_path("Samples")
 
         self.sample_root = sample_root
 

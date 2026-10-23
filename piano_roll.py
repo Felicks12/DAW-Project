@@ -11,12 +11,10 @@ import sounddevice as sd
 import soundfile as sf
 import time
 
-import urllib.request
-import requests
-from io import BytesIO
-
 from synth_engine import SynthEngine, ThreeBandEQ, SAMPLE_RATE, WAVEFORMS, load_wav_file
-
+def resource_path(relative):
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative)
 # ---------------------------------------------------------------------------
 # Layout / musical constants
 # ---------------------------------------------------------------------------
@@ -364,11 +362,8 @@ class PianoRollApp:
     def __init__(self):
         pygame.init()
         pygame.display.set_caption("CS Sound")
-
-        url = "https://raw.githubusercontent.com/Felicks12/DAW-Project/refs/heads/main/MusicApp.ico"
-
-        with urllib.request.urlopen(url) as response:
-            self.icon = pygame.image.load(BytesIO(response.read()))
+        icon = pygame.image.load(resource_path("MusicApp.ico"))
+        pygame.display.set_icon(icon)
 
         pygame.mixer.init(
             frequency=44100,
@@ -507,7 +502,6 @@ class PianoRollApp:
         self.build_toolbar()
 
         self.NUM = 1
-
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
