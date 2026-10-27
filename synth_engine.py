@@ -530,7 +530,7 @@ class SynthEngine:
         If the instrument has Samples available, notes will use
         those Samples.
 
-        Otherwise the engine falls back to the oscillator.
+        Otherwise, the engine falls back to the oscillator.
         """
 
         if name is None:
