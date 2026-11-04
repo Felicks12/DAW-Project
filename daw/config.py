@@ -13,7 +13,8 @@ MAX_NOTE = 127
 TOTAL_ROWS = MAX_NOTE - MIN_NOTE + 1
 ROW_HEIGHT = 18
 
-KEY_AREA_WIDTH = 90
+# Width of the left column: piano keys, or the drum sample panel.
+KEY_AREA_WIDTH = 150
 TOP_BAR_H = 50
 LABEL_H = 22
 GRID_Y = TOP_BAR_H + LABEL_H
@@ -45,6 +46,25 @@ MENU_PANEL_W = 150
 MASTER_VOLUME_W = 110
 MASTER_VOLUME_H = 18
 MASTER_VOLUME_X_MARGIN = 62
+
+# Stacking order of popup menus (higher = drawn on top). Used so that rows
+# under a menu that overlaps them never show hover highlights.
+LAYER_TRACKS = 0
+LAYER_INSTR = 1
+LAYER_INSTR_SUB = 2
+LAYER_MENU = 3
+LAYER_CONTEXT = 4
+
+# Drum sample panel: sections and the drum parts inside each section.
+DRUM_SECTIONS = [
+    ("Kick", ["Kick"]),
+    ("Snare", ["Snare"]),
+    ("Hi-Hats", ["Closed Hat", "Open Hat"]),
+    ("Cymbals", ["Crash"]),
+    ("Toms", ["Low Tom", "High Tom"]),
+]
+DRUM_HEADER_H = 20
+DRUM_ITEM_H = 32
 
 TIME_SIGNATURES = [
             (2, 4),
@@ -94,6 +114,7 @@ HELP_LINES = [
     "Right click: delete a note. Hold + drag: delete across notes",
     "Shift + drag on the grid: rubber-band select multiple notes",
     "Ctrl+C / Ctrl+V: copy / paste the current selection",
+    "Ctrl+Z: undo.  Ctrl+Y or Ctrl+Shift+Z: redo",
     "Delete or Backspace: delete the current selection",
     "Scroll wheel: move left / right along the timeline",
     "Shift + scroll: move up / down the keyboard",
@@ -101,7 +122,11 @@ HELP_LINES = [
     "Up / Down: move up / down the keyboard",
     "Click BPM, type a number, then press Enter",
     "Tracks: switch tracks, or use + Add track to name a new one",
+    "Tracks: drag a track up or down in the list to reorder it",
     "Right click a track: open its Settings (incl. Bass/Mid/Treble) or delete it",
+    "View All: show every track's notes at once; click a faded note to edit its track",
+    "Drum track: pick or drag a sample from the left panel onto the grid",
+    "  (notes are colored by drum part; the panel replaces the piano keys)",
     "Instrument: hover a category to open its sound submenu",
     "Save / Load: save or open .pysynth project files",
     "The selected track is edited visually; all tracks play together",

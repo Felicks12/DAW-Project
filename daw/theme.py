@@ -46,3 +46,41 @@ SLIDER_HANDLE_HOT = (230, 90, 90)
 METER_BG = (40, 40, 46)
 METER_OK_COLOR = (95, 180, 110)
 METER_HOT_COLOR = (220, 90, 90)
+
+
+def lighten(color, amount):
+    """Move an RGB color toward white by `amount` (0..1)."""
+    return tuple(int(c + (255 - c) * amount) for c in color)
+
+
+def mix_color(a, b, amount):
+    """Blend color a toward color b by `amount` (0 = a, 1 = b)."""
+    return tuple(int(x + (y - x) * amount) for x, y in zip(a, b))
+
+
+# Drum parts: one distinct color per part, used for notes and the sample panel.
+DRUM_PART_COLORS = {
+    "Kick": (70, 130, 235),         # blue
+    "Snare": (240, 150, 50),        # orange
+    "Closed Hat": (235, 210, 70),   # yellow
+    "Open Hat": (170, 115, 230),    # purple
+    "Crash": (80, 195, 115),        # green
+    "Low Tom": (45, 185, 185),      # teal
+    "High Tom": (225, 75, 75),      # red
+}
+DRUM_PART_BORDERS = {name: lighten(color, 0.35) for name, color in DRUM_PART_COLORS.items()}
+
+DRUM_PANEL_BG = (28, 28, 32)
+DRUM_ITEM_BG = (40, 40, 46)
+
+# Colors used to tell tracks apart in "View All" mode.
+TRACK_COLORS = [
+    (90, 170, 230),
+    (240, 150, 50),
+    (80, 195, 115),
+    (225, 75, 75),
+    (170, 115, 230),
+    (235, 210, 70),
+    (45, 185, 185),
+    (230, 120, 190),
+]

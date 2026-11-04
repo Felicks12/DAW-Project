@@ -1,6 +1,7 @@
 """Track data models: instrument tracks and the drum track."""
 
-from synth_engine import SynthEngine, ThreeBandEQ
+from synth_engine import ThreeBandEQ
+from sound_generator import GeneratorEngine, DrumEngine
 
 from .paths import resource_path
 
@@ -19,12 +20,13 @@ class Track:
         self.name = name or f"Track {self.id}"
         self.track_type = track_type
         self.is_drum_track = False
-        self.instrument = instrument
-        self.sound = sound
-        # The actual synth implementation still uses waveforms internally.
-        # Instrument selection is metadata/UI for now, as requested.
-        self.engine = SynthEngine(waveform=waveform)
-        self.engine.set_instrument("piano")
+        self._instrument = instrument
+        self._sound = sound
+
+        # Instrument sounds are generated (see sound_generator.py); setting
+        # track.sound later re-configures the engine automatically.
+        self.engine = GeneratorEngine(waveform=waveform)
+        self.engine.set_sound(sound)
         self.eq = ThreeBandEQ()
         self.notes = set()
         self.sounding = {}
@@ -36,6 +38,24 @@ class Track:
         self.solo = False
 
         self.time_signature = (4, 4)
+
+    @property
+    def instrument(self):
+        return self._instrument
+
+    @instrument.setter
+    def instrument(self, value):
+        self._instrument = value
+
+    @property
+    def sound(self):
+        return self._sound
+
+    @sound.setter
+    def sound(self, value):
+        self._sound = value
+        self.engine.all_notes_off()
+        self.engine.set_sound(value)
 
 
 class DrumTrack:
@@ -54,6 +74,8 @@ class DrumTrack:
         self.instrument = "Drums"
         self.sound = "Drum Kit"
 
+        # All drum parts live in this one track. current_part is the part
+        # that is being edited / the "brush" used when clicking the grid.
         self.parts = {
             "Kick": set(),
             "Snare": set(),
@@ -69,7 +91,7 @@ class DrumTrack:
         if sample_root is None:
             sample_root = resource_path("Samples")
 
-        self.engine = SynthEngine(
+        self.engine = DrumEngine(
             waveform="sine",
             master_volume=0.3,
             sample_root=sample_root
@@ -79,3 +101,10 @@ class DrumTrack:
         self.solo = False
 
         self.time_signature = (4, 4)
+
+    def sample_label(self, part):
+        """Short description of where a part's sound comes from."""
+        source = self.engine.sample_sources.get(part, "")
+        if source == "generated" or not source:
+            return "generated"
+        return source.rsplit(".", 1)[0]
