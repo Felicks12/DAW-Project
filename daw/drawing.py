@@ -24,7 +24,7 @@ class DrawingMixin:
             self.screen.blit(label, (x + 4, TOP_BAR_H + 5))
 
         track_label = self.font_small.render(
-            f"Editing: {self.track.name} — {self.track.instrument}: {self.track.sound}",
+            f"Editing: {self.track.name} - {self.track.instrument}: {self.track.sound}",
             True,
             MUTED_TEXT,
         )
@@ -55,6 +55,8 @@ class DrawingMixin:
         grid_rect = pygame.Rect(KEY_AREA_WIDTH, GRID_Y, self.viewport_w - KEY_AREA_WIDTH, self.viewport_h - GRID_Y)
         pygame.draw.rect(self.screen, BG_COLOR, grid_rect)
 
+        is_drum = getattr(self.track, "is_drum_track", False)
+
         first_row = max(0, int(self.scroll_y // ROW_HEIGHT))
         last_row = min(TOTAL_ROWS - 1, int((self.scroll_y + self.viewport_h - GRID_Y) // ROW_HEIGHT) + 1)
 
@@ -68,6 +70,11 @@ class DrawingMixin:
                 pygame.draw.rect(self.screen, ROW_ALT_COLOR, (KEY_AREA_WIDTH, int(y), self.viewport_w - KEY_AREA_WIDTH, ROW_HEIGHT))
 
             pygame.draw.line(self.screen, GRID_LINE, (KEY_AREA_WIDTH, int(y)), (self.viewport_w, int(y)), 1)
+
+            # The drum panel replaces the piano keys, so label the C rows here.
+            if is_drum and pitch % 12 == 0:
+                pitch_label = self.font_small.render(f"C{pitch // 12 - 1}", True, (95, 95, 105))
+                self.screen.blit(pitch_label, (KEY_AREA_WIDTH + 4, int(y) + 3))
 
         current_track = self.tracks[self.current_track_index]
         steps_per_measure = self.get_track_steps_per_measure(current_track)
@@ -120,14 +127,25 @@ class DrawingMixin:
                 text = self.font_small.render(str(measure + 1), True, MUTED_TEXT)
                 self.screen.blit(text, (int(x + 4), TOP_BAR_H + 4))
 
-        for note in list(self.get_current_notes()):
+        # "View All": faded notes of the other tracks, behind the editable ones.
+        self.draw_ghost_notes()
+
+        active_part = self.track.current_part if is_drum else None
+
+        for note, part in self.drawable_notes():
             pitch, start, length = note
-            is_selected = note in self.selected_notes
+
+            # Notes of a drum part other than the one being edited are shown
+            # (in their own color) but are not part of the selection / drags.
+            in_active = part is None or part == active_part
+            is_selected = in_active and note in self.selected_notes
+            is_moving = in_active and bool(self.moving) and note in self.moving["selected_orig"]
+            is_resizing = in_active and bool(self.resizing) and note in self.resizing["selected_orig"]
 
             # ----------------------------------------------------------
             # Moving notes
             # ----------------------------------------------------------
-            if self.moving and note in self.moving["selected_orig"]:
+            if is_moving:
                 delta_steps = self.moving["current_delta_steps"]
                 delta_rows = self.moving["current_delta_rows"]
 
@@ -137,7 +155,7 @@ class DrawingMixin:
             # ----------------------------------------------------------
             # Resizing notes
             # ----------------------------------------------------------
-            if self.resizing and note in self.resizing["selected_orig"]:
+            if is_resizing:
                 selected_orig = self.resizing["selected_orig"]
                 current_notes = self.resizing.get("current_notes", [])
 
@@ -166,17 +184,17 @@ class DrawingMixin:
                 max(2, ROW_HEIGHT - 2)
             )
 
-            color = NOTE_COLOR
-            border_color = NOTE_BORDER
+            if part is None:
+                color = NOTE_COLOR
+                border_color = NOTE_BORDER
+            else:
+                color = DRUM_PART_COLORS[part]
+                border_color = DRUM_PART_BORDERS[part]
+
             border_width = 1
 
-            # Moving preview
-            if self.moving and note in self.moving["selected_orig"]:
-                color = NOTE_MOVING_COLOR
-                border_color = NOTE_MOVING_BORDER
-
-            # Resizing preview
-            if self.resizing and note in self.resizing["selected_orig"]:
+            # Moving / resizing preview
+            if is_moving or is_resizing:
                 color = NOTE_MOVING_COLOR
                 border_color = NOTE_MOVING_BORDER
 
@@ -352,15 +370,18 @@ class DrawingMixin:
 
         self.draw_toolbar()
         self.draw_tracks_dropdown()
-        self.draw_drum_parts_dropdown()
         self.draw_instr_dropdown()
         self.draw_menu_dropdown()
         self.draw_track_context_menu()
+        self.draw_drum_drag()
         self.draw_help()
 
-        hint = "Space: play/pause   Right click: delete   Shift+drag: select   Ctrl+C/V: copy/paste"
-        text = self.font_small.render(hint, True, MUTED_TEXT)
-        self.screen.blit(text, (KEY_AREA_WIDTH + 4, self.viewport_h - 14))
+        if self.view_all_tracks:
+            self.draw_view_all_legend()
+        else:
+            hint = "Space: play/pause   Right click: delete   Shift+drag: select   Ctrl+C/V: copy/paste   Ctrl+Z: undo"
+            text = self.font_small.render(hint, True, MUTED_TEXT)
+            self.screen.blit(text, (KEY_AREA_WIDTH + 4, self.viewport_h - 14))
 
         if self.status_message and pygame.time.get_ticks() < self.status_until:
             status = self.font_small.render(

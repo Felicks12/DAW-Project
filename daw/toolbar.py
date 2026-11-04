@@ -122,6 +122,7 @@ class ToolbarMixin:
         self.btn_bpm_up = Button((x, y, 24, h), "+"); x += 30
         self.btn_tracks = Button((x, y, 78, h), "Tracks", dropdown=True); x += 84
         self.btn_instr = Button((x, y, 98, h), "Piano", dropdown=True); x += 104
+        self.btn_view_all = Button((x, y, 74, h), "View All"); x += 80
         self.btn_menu = Button((self.windowed_size[0] - 48, y, 40, h), "")
 
     def reposition_toolbar(self):
@@ -142,6 +143,7 @@ class ToolbarMixin:
 
         self.btn_tracks.draw(self.screen, self.font, active=self.show_tracks_dropdown, active_color=BTN_HELP_ACTIVE)
         self.btn_instr.draw(self.screen, self.font, active=self.show_instr_dropdown, active_color=BTN_HELP_ACTIVE)
+        self.btn_view_all.draw(self.screen, self.font, active=self.view_all_tracks, active_color=BTN_HELP_ACTIVE)
         self.draw_gear_button()
 
         self.draw_master_volume()

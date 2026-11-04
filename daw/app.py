@@ -3,6 +3,10 @@
 Feature code lives in the sibling modules (toolbar, playback, note_editing,
 dropdowns, track_menu, ...). Add new features in their own module/mixin so
 that parallel work doesn't collide in one giant file.
+
+Mixin order matters: mixins that wrap an existing handler (overlays,
+track_reorder, drum_panel, view_all, history) come first and call
+super() to fall through to the base handlers further down the list.
 """
 
 import ctypes
@@ -12,12 +16,15 @@ import pygame
 
 from .audio import start_audio
 from .config import *
-from .dropdowns import DropdownsMixin
 from .drawing import DrawingMixin
+from .drum_panel import DrumPanelMixin
+from .dropdowns import DropdownsMixin
 from .events import EventsMixin
+from .history import HistoryMixin
 from .mouse_down import MouseDownMixin
 from .mouse_motion import MouseMotionMixin
 from .note_editing import NoteEditingMixin
+from .overlays import OverlayMixin
 from .paths import resource_path
 from .playback import PlaybackMixin
 from .preview import PreviewMixin
@@ -25,11 +32,20 @@ from .project_io import ProjectIOMixin
 from .toolbar import ToolbarMixin
 from .track_menu import TrackMenuMixin
 from .track_naming import TrackNamingMixin
+from .track_reorder import TrackReorderMixin
 from .tracks import Track, DrumTrack
+from .view_all import ViewAllMixin
 from .viewport import ViewportMixin
 
 
 class PianoRollApp(
+    # handler wrappers (outermost first)
+    OverlayMixin,
+    TrackReorderMixin,
+    DrumPanelMixin,
+    ViewAllMixin,
+    HistoryMixin,
+    # features
     ToolbarMixin,
     ViewportMixin,
     PlaybackMixin,
@@ -39,6 +55,7 @@ class PianoRollApp(
     TrackMenuMixin,
     TrackNamingMixin,
     ProjectIOMixin,
+    # base input / drawing
     EventsMixin,
     MouseDownMixin,
     MouseMotionMixin,
@@ -58,6 +75,7 @@ class PianoRollApp(
         )
 
         self.undo_stack = []
+        self.redo_stack = []
         self.max_undo_history = 100
 
         self.playhead_visual_time = 0.0
@@ -174,6 +192,16 @@ class PianoRollApp(
         self.track_name_input = ""
         self.track_name_focused = False
         self.new_track_type = "instrument"
+
+        # "View All" (all tracks' notes at once)
+        self.view_all_tracks = False
+
+        # Drag to reorder tracks in the Tracks dropdown
+        self.track_reorder = None          # {"index": i, "start": (x, y), "active": bool}
+
+        # Drum sample panel (replaces the piano keys on drum tracks)
+        self.drum_drag = None              # {"part": name, "start": pos, "pos": pos, "moved": bool}
+        self.drum_panel_scroll = 0
 
         self.current_file = None
         self.status_message = ""

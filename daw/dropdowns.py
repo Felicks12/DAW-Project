@@ -1,4 +1,4 @@
-"""Dropdown panels: Tracks, Instrument (+ submenu), drum parts, gear menu."""
+"""Dropdown panels: Tracks (drag to reorder), Instrument (+ submenu), gear menu."""
 
 import pygame
 
@@ -47,106 +47,12 @@ class DropdownsMixin:
         self.show_instr_dropdown = False
         self.hovered_instrument_category = None
         self.hovered_drum_track = None
+        self.track_reorder = None
 
     # ------------------------------------------------------------------
-    # Drawing
+    # Drawing (hover highlights go through hover_ok so that rows hidden
+    # underneath another menu never light up)
     # ------------------------------------------------------------------
-
-    def draw_drum_parts_dropdown(self):
-        if self.hovered_drum_track is None:
-            return
-
-        # Draw the submenu for the specific drum track being hovered.
-        drum_index = self.hovered_drum_track
-        if not (0 <= drum_index < len(self.tracks)):
-            return
-        drum_track = self.tracks[drum_index]
-        if not getattr(drum_track, "is_drum_track", False):
-            return
-
-        tracks_rect = self.tracks_panel_rect()
-
-        row_y = (
-                tracks_rect.y
-                + 4
-                + drum_index * DROPDOWN_ROW_H
-        )
-
-        # Submenu appears immediately to the right.
-        panel_x = tracks_rect.right + 2
-        panel_y = row_y
-
-        parts = list(drum_track.parts.keys())
-
-        panel_w = 130
-        panel_h = len(parts) * DROPDOWN_ROW_H + 8
-
-        # Keep submenu inside the window.
-        if panel_x + panel_w > self.viewport_w:
-            panel_x = tracks_rect.x - panel_w - 2
-
-        if panel_y + panel_h > self.viewport_h:
-            panel_y = self.viewport_h - panel_h - 4
-
-        panel = pygame.Rect(
-            panel_x,
-            panel_y,
-            panel_w,
-            panel_h
-        )
-
-        pygame.draw.rect(
-            self.screen,
-            DROPDOWN_BG,
-            panel,
-            border_radius=4
-        )
-
-        pygame.draw.rect(
-            self.screen,
-            DROPDOWN_BORDER,
-            panel,
-            1,
-            border_radius=4
-        )
-
-        mouse_pos = pygame.mouse.get_pos()
-
-        for i, part in enumerate(parts):
-            row_rect = pygame.Rect(
-                panel.x + 4,
-                panel.y + 4 + i * DROPDOWN_ROW_H,
-                panel.width - 8,
-                DROPDOWN_ROW_H
-            )
-
-            if part == drum_track.current_part:
-                pygame.draw.rect(
-                    self.screen,
-                    DROPDOWN_SELECTED,
-                    row_rect
-                )
-            elif row_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(
-                    self.screen,
-                    DROPDOWN_HOVER,
-                    row_rect
-                )
-
-            label = self.font.render(
-                part,
-                True,
-                TEXT_COLOR
-            )
-
-            self.screen.blit(
-                label,
-                (
-                    row_rect.x + 6,
-                    row_rect.y
-                    + (row_rect.height - label.get_height()) // 2
-                )
-            )
 
     def draw_tracks_dropdown(self):
         if not self.show_tracks_dropdown:
@@ -156,7 +62,8 @@ class DropdownsMixin:
         pygame.draw.rect(self.screen, DROPDOWN_BG, rect, border_radius=4)
         pygame.draw.rect(self.screen, DROPDOWN_BORDER, rect, 1, border_radius=4)
 
-        mouse_pos = pygame.mouse.get_pos()
+        reorder = self.track_reorder if (self.track_reorder and self.track_reorder["active"]) else None
+        show_grip = len(self.tracks) > 1
 
         for i, t in enumerate(self.tracks):
             row_rect = pygame.Rect(
@@ -166,34 +73,31 @@ class DropdownsMixin:
                 DROPDOWN_ROW_H
             )
 
-            if i == self.current_track_index:
+            if reorder is not None and reorder["index"] == i:
+                held = row_rect.inflate(-4, -2)
+                pygame.draw.rect(self.screen, DROPDOWN_SELECTED, held, border_radius=3)
+                pygame.draw.rect(self.screen, NOTE_BORDER, held, 1, border_radius=3)
+            elif i == self.current_track_index:
                 pygame.draw.rect(self.screen, DROPDOWN_SELECTED, row_rect)
-            elif row_rect.collidepoint(mouse_pos):
+            elif self.hover_ok(row_rect, LAYER_TRACKS):
                 pygame.draw.rect(self.screen, DROPDOWN_HOVER, row_rect)
+
+            label_x = row_rect.x + 8
+
+            if show_grip:
+                for k in range(3):
+                    gy = row_rect.centery - 3 + k * 3
+                    pygame.draw.line(self.screen, MUTED_TEXT, (row_rect.x + 7, gy), (row_rect.x + 13, gy), 1)
+                label_x = row_rect.x + 22
 
             label = self.font.render(t.name, True, TEXT_COLOR)
             self.screen.blit(
                 label,
                 (
-                    row_rect.x + 8,
+                    label_x,
                     row_rect.y + (row_rect.height - label.get_height()) // 2
                 )
             )
-
-            # Drum tracks have a right-facing arrow.
-            if getattr(t, "is_drum_track", False):
-                arrow_x = row_rect.right - 14
-                arrow_y = row_rect.centery
-
-                pygame.draw.polygon(
-                    self.screen,
-                    MUTED_TEXT,
-                    [
-                        (arrow_x - 3, arrow_y - 5),
-                        (arrow_x + 2, arrow_y),
-                        (arrow_x - 3, arrow_y + 5),
-                    ]
-                )
 
         add_row = pygame.Rect(
             rect.x,
@@ -202,7 +106,7 @@ class DropdownsMixin:
             DROPDOWN_ROW_H
         )
 
-        if add_row.collidepoint(mouse_pos):
+        if self.hover_ok(add_row, LAYER_TRACKS):
             pygame.draw.rect(self.screen, DROPDOWN_HOVER, add_row)
 
         add_label = self.font.render(
@@ -220,7 +124,7 @@ class DropdownsMixin:
         )
 
         hint = self.font_small.render(
-            "Right-click a track for settings / delete",
+            "Drag to reorder - right-click for more",
             True,
             MUTED_TEXT
         )
@@ -238,7 +142,6 @@ class DropdownsMixin:
         pygame.draw.rect(self.screen, DROPDOWN_BG, rect, border_radius=4)
         pygame.draw.rect(self.screen, DROPDOWN_BORDER, rect, 1, border_radius=4)
 
-        mouse_pos = pygame.mouse.get_pos()
         categories = list(INSTRUMENTS)
 
         for i, category in enumerate(categories):
@@ -247,7 +150,7 @@ class DropdownsMixin:
 
             if selected:
                 pygame.draw.rect(self.screen, DROPDOWN_SELECTED, row_rect)
-            elif row_rect.collidepoint(mouse_pos):
+            elif self.hover_ok(row_rect, LAYER_INSTR):
                 pygame.draw.rect(self.screen, DROPDOWN_HOVER, row_rect)
 
             label = self.font.render(category, True, TEXT_COLOR)
@@ -266,14 +169,12 @@ class DropdownsMixin:
         pygame.draw.rect(self.screen, DROPDOWN_BG, rect, border_radius=4)
         pygame.draw.rect(self.screen, DROPDOWN_BORDER, rect, 1, border_radius=4)
 
-        mouse_pos = pygame.mouse.get_pos()
-
         for i, sound in enumerate(INSTRUMENTS[category]):
             row_rect = pygame.Rect(rect.x, rect.y + 4 + i * DROPDOWN_ROW_H, rect.width, DROPDOWN_ROW_H)
 
             if self.track.sound == sound and self.track.instrument == category:
                 pygame.draw.rect(self.screen, DROPDOWN_SELECTED, row_rect)
-            elif row_rect.collidepoint(mouse_pos):
+            elif self.hover_ok(row_rect, LAYER_INSTR_SUB):
                 pygame.draw.rect(self.screen, DROPDOWN_HOVER, row_rect)
 
             label = self.font.render(sound, True, TEXT_COLOR)
@@ -288,11 +189,10 @@ class DropdownsMixin:
         pygame.draw.rect(self.screen, DROPDOWN_BORDER, rect, 1, border_radius=4)
 
         labels = ["Save", "Load", "Help"]
-        mouse = pygame.mouse.get_pos()
 
         for i, label in enumerate(labels):
             row = pygame.Rect(rect.x, rect.y + 4 + i * DROPDOWN_ROW_H, rect.width, DROPDOWN_ROW_H)
-            if row.collidepoint(mouse):
+            if self.hover_ok(row, LAYER_MENU):
                 pygame.draw.rect(self.screen, DROPDOWN_HOVER, row)
             txt = self.font.render(label, True, TEXT_COLOR)
             self.screen.blit(txt, (row.x + 10, row.y + (row.height - txt.get_height()) // 2))
