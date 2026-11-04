@@ -1,52 +1,12 @@
-"""Note data: add / move / resize / delete, selection, clipboard, undo."""
+"""Note data: add / move / resize / delete, selection and clipboard.
+
+Undo / redo lives in history.py.
+"""
 
 from .config import *
 
 
 class NoteEditingMixin:
-    # ------------------------------------------------------------------
-    # Undo
-    # ------------------------------------------------------------------
-
-    def save_undo_state(self):
-        state = []
-
-        for t in self.tracks:
-            if getattr(t, "is_drum_track", False):
-                state.append({
-                    "type": "drum",
-                    "parts": {
-                        name: set(notes)
-                        for name, notes in t.parts.items()
-                    }
-                })
-            else:
-                state.append({
-                    "type": "instrument",
-                    "notes": set(t.notes)
-                })
-
-        self.undo_stack.append(state)
-
-        if len(self.undo_stack) > self.max_undo_history:
-            self.undo_stack.pop(0)
-
-    def undo(self):
-        if not self.undo_stack:
-            return
-
-        state = self.undo_stack.pop()
-
-        for t, notes in zip(self.tracks, state):
-            t.notes.clear()
-            t.notes.update(notes)
-
-        self.selected_notes = set()
-
-        for t in self.tracks:
-            t.engine.all_notes_off()
-            t.sounding.clear()
-
     # ------------------------------------------------------------------
     # Commit drag operations
     # ------------------------------------------------------------------
@@ -66,8 +26,6 @@ class NoteEditingMixin:
 
         # Save undo state before actually changing the notes.
         self.save_undo_state()
-
-        selected_set = set(selected_orig)
 
         # Remove all original selected notes.
         for note in selected_orig:
@@ -102,6 +60,8 @@ class NoteEditingMixin:
         # Nothing changed
         if current_notes == selected_orig:
             return
+
+        self.save_undo_state()
 
         # Remove all original notes
         for note in selected_orig:
@@ -156,21 +116,30 @@ class NoteEditingMixin:
     def paste_notes(self):
         if not self.clipboard:
             return
+
         anchor = self.clipboard_end
-        pasted = set()
+        to_add = []
+
         for pitch, rel_start, length in self.clipboard:
             new_start = anchor + rel_start
             if new_start + length > self.total_steps:
                 continue
             if self.overlaps(pitch, new_start, length):
                 continue
-            note = (pitch, new_start, length)
+            to_add.append((pitch, new_start, length))
+
+        if not to_add:
+            return
+
+        self.save_undo_state()
+
+        pasted = set()
+        for note in to_add:
             self.get_current_notes().add(note)
             pasted.add(note)
 
-        if pasted:
-            self.selected_notes = pasted
-            self.clipboard_end = max(n[1] + n[2] for n in pasted)
+        self.selected_notes = pasted
+        self.clipboard_end = max(n[1] + n[2] for n in pasted)
 
     # ------------------------------------------------------------------
     # Note data
@@ -193,7 +162,7 @@ class NoteEditingMixin:
         use this, so the resize arrow and the resize hitbox can never
         drift apart the way they could when each had its own hit-test.
         The edge zone is intentionally allowed to extend EDGE_GRAB_PX
-        outside the note's visual bounds, not just inside — otherwise a
+        outside the note's visual bounds, not just inside - otherwise a
         cursor that shows the resize arrow just past the edge would click
         through to "add a new note" instead.
         """
@@ -348,7 +317,11 @@ class NoteEditingMixin:
             new_total = (self.num_measures - 1) * STEPS_PER_MEASURE
 
             for t in self.tracks:
-                t.notes = {n for n in t.notes if n[1] < new_total}
+                if getattr(t, "is_drum_track", False):
+                    for name in t.parts:
+                        t.parts[name] = {n for n in t.parts[name] if n[1] < new_total}
+                else:
+                    t.notes = {n for n in t.notes if n[1] < new_total}
 
             self.selected_notes = {n for n in self.selected_notes if n[1] < new_total}
             self.num_measures -= 1
