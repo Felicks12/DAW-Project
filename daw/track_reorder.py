@@ -62,11 +62,6 @@ class TrackReorderMixin:
         self.hovered_drum_track = None
         self.update_toolbar_labels()
 
-    # ------------------------------------------------------------------
-    # Input. A press on a track row only becomes a "select" if the mouse is
-    # released without dragging; dragging up/down reorders instead.
-    # ------------------------------------------------------------------
-
     def handle_mouse_down(self, pos, button):
         if button == 1 and not self.modal_open() and self.track_context_menu is None:
             index = self._reorder_row_at(pos)

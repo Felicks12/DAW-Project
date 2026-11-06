@@ -8,9 +8,6 @@ from .widgets import draw_arrow
 
 
 class DropdownsMixin:
-    # ------------------------------------------------------------------
-    # Geometry
-    # ------------------------------------------------------------------
 
     def tracks_panel_rect(self):
         rows = len(self.tracks) + 1
@@ -48,11 +45,6 @@ class DropdownsMixin:
         self.hovered_instrument_category = None
         self.hovered_drum_track = None
         self.track_reorder = None
-
-    # ------------------------------------------------------------------
-    # Drawing (hover highlights go through hover_ok so that rows hidden
-    # underneath another menu never light up)
-    # ------------------------------------------------------------------
 
     def draw_tracks_dropdown(self):
         if not self.show_tracks_dropdown:

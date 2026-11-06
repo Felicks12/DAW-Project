@@ -14,9 +14,7 @@ class PreviewMixin:
             self.grid_preview_pitch = None
 
     def preview_grid_note(self, pitch, duration_ms=260):
-        # ----------------------------------------------------------
-        # DRUM TRACK
-        # ----------------------------------------------------------
+
         if getattr(self.track, "is_drum_track", False):
             self.track.engine.play_drum(
                 self.track.current_part,
@@ -24,10 +22,6 @@ class PreviewMixin:
                 velocity=100
             )
             return
-
-        # ----------------------------------------------------------
-        # NORMAL PIANO / SYNTH TRACK
-        # ----------------------------------------------------------
 
         if self.grid_preview_pitch == pitch:
             self.grid_preview_release_at = (

@@ -80,9 +80,6 @@ class PlaybackMixin:
 
         step_len = self.seconds_per_step
 
-        # ----------------------------------------------------------
-        # AUTHORITATIVE PLAYBACK CLOCK
-        # ----------------------------------------------------------
         now = time.perf_counter()
 
         playback_time = (
@@ -96,9 +93,6 @@ class PlaybackMixin:
             self.playhead_step = 0.0
             return
 
-        # ----------------------------------------------------------
-        # Current playback position
-        # ----------------------------------------------------------
         self.play_pos_seconds = playback_time
 
         audio_time = playback_time + self.audio_lead
@@ -107,9 +101,6 @@ class PlaybackMixin:
             audio_time / step_len
         )
 
-        # ----------------------------------------------------------
-        # LOOP
-        # ----------------------------------------------------------
         if playback_time >= self.total_steps * step_len:
             self.playback_start_time = (
                 now
@@ -127,17 +118,8 @@ class PlaybackMixin:
                 if hasattr(t, "sounding"):
                     t.sounding.clear()
 
-        # ----------------------------------------------------------
-        # NEW STEP
-        # ----------------------------------------------------------
         if cur_step != self.last_playback_step:
 
-            # ------------------------------------------------------
-            # Handle EVERY step that may have been crossed.
-            #
-            # This prevents notes from being skipped if a Pygame
-            # frame takes longer than one 16th-note step.
-            # ------------------------------------------------------
             first_step = self.last_playback_step + 1
 
             if self.last_playback_step == -1:
@@ -148,9 +130,6 @@ class PlaybackMixin:
                     cur_step + 1
             ):
 
-                # --------------------------------------------------
-                # NORMAL TRACKS
-                # --------------------------------------------------
                 for t in self.tracks:
 
                     if getattr(
@@ -185,9 +164,6 @@ class PlaybackMixin:
                                     start + length
                             )
 
-                # --------------------------------------------------
-                # DRUM TRACKS
-                # --------------------------------------------------
                 for t in self.tracks:
 
                     if not getattr(
@@ -211,16 +187,10 @@ class PlaybackMixin:
 
             self.last_playback_step = cur_step
 
-        # ----------------------------------------------------------
-        # PLAYHEAD POSITION
-        # ----------------------------------------------------------
         self.playhead_step = (
                 self.play_pos_seconds / step_len
         )
 
-        # ----------------------------------------------------------
-        # KEEP PLAYHEAD VISIBLE
-        # ----------------------------------------------------------
         playhead_x = self.step_to_screen_x(self.playhead_step)
 
         if (

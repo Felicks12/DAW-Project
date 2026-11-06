@@ -1,19 +1,3 @@
-"""
-main.py
-
-Run this to start the synth. It will:
-  1. Try to find a connected MIDI input device and let you play it live.
-  2. If no MIDI device is found, fall back to a QWERTY "keyboard as piano"
-     mode using your computer keyboard.
-
-Usage:
-    python main.py                  # auto-detect MIDI, else QWERTY fallback
-    python main.py --list-midi      # list available MIDI input ports
-    python main.py --midi "port name"   # force a specific MIDI port
-    python main.py --qwerty         # force QWERTY mode even if MIDI exists
-    python main.py --waveform saw   # sine | square | saw | triangle
-"""
-
 import argparse
 import sys
 import time

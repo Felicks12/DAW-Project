@@ -7,9 +7,6 @@ from .config import *
 
 
 class NoteEditingMixin:
-    # ------------------------------------------------------------------
-    # Commit drag operations
-    # ------------------------------------------------------------------
 
     def commit_move(self):
         m = self.moving
@@ -73,10 +70,6 @@ class NoteEditingMixin:
             self.get_current_notes().add(note)
             self.selected_notes.add(note)
 
-    # ------------------------------------------------------------------
-    # Marquee (rubber-band) selection
-    # ------------------------------------------------------------------
-
     def finish_marquee(self):
         if self.marquee is None:
             return
@@ -101,10 +94,6 @@ class NoteEditingMixin:
 
         self.selected_notes = selected
         self.marquee = None
-
-    # ------------------------------------------------------------------
-    # Copy / paste
-    # ------------------------------------------------------------------
 
     def copy_selected_notes(self):
         if not self.selected_notes:
@@ -140,10 +129,6 @@ class NoteEditingMixin:
 
         self.selected_notes = pasted
         self.clipboard_end = max(n[1] + n[2] for n in pasted)
-
-    # ------------------------------------------------------------------
-    # Note data
-    # ------------------------------------------------------------------
 
     def get_current_notes(self):
         track = self.tracks[self.current_track_index]
@@ -240,9 +225,6 @@ class NoteEditingMixin:
 
         step = max(0, min(step, self.total_steps - 1))
 
-        # ----------------------------------------------------------
-        # DRUM TRACK
-        # ----------------------------------------------------------
         if getattr(self.track, "is_drum_track", False):
 
             part = self.track.current_part
@@ -269,10 +251,6 @@ class NoteEditingMixin:
                 self.preview_grid_note(pitch)
 
             return
-
-        # ----------------------------------------------------------
-        # NORMAL PIANO / SYNTH TRACK
-        # ----------------------------------------------------------
 
         max_length = min(
             DEFAULT_NOTE_LEN_STEPS,

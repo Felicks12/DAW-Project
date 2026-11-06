@@ -142,9 +142,6 @@ class DrawingMixin:
             is_moving = in_active and bool(self.moving) and note in self.moving["selected_orig"]
             is_resizing = in_active and bool(self.resizing) and note in self.resizing["selected_orig"]
 
-            # ----------------------------------------------------------
-            # Moving notes
-            # ----------------------------------------------------------
             if is_moving:
                 delta_steps = self.moving["current_delta_steps"]
                 delta_rows = self.moving["current_delta_rows"]
@@ -152,9 +149,6 @@ class DrawingMixin:
                 pitch = pitch - delta_rows
                 start = start + delta_steps
 
-            # ----------------------------------------------------------
-            # Resizing notes
-            # ----------------------------------------------------------
             if is_resizing:
                 selected_orig = self.resizing["selected_orig"]
                 current_notes = self.resizing.get("current_notes", [])

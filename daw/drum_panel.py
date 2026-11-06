@@ -32,9 +32,6 @@ def _fit_text(font, text, max_width):
 
 
 class DrumPanelMixin:
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def is_drum_selected(self):
         return getattr(self.track, "is_drum_track", False)
@@ -78,10 +75,6 @@ class DrumPanelMixin:
 
         return row_to_pitch(row), step
 
-    # ------------------------------------------------------------------
-    # Panel geometry
-    # ------------------------------------------------------------------
-
     def drum_panel_rect(self):
         return pygame.Rect(0, GRID_Y, KEY_AREA_WIDTH, self.viewport_h - GRID_Y)
 
@@ -117,10 +110,6 @@ class DrumPanelMixin:
                 return part
 
         return None
-
-    # ------------------------------------------------------------------
-    # Drawing
-    # ------------------------------------------------------------------
 
     def draw_keyboard(self):
         if self.is_drum_selected():
@@ -210,10 +199,6 @@ class DrumPanelMixin:
         chip = pygame.Rect(x + 12, y + 8, label.get_width() + 14, label.get_height() + 6)
         pygame.draw.rect(self.screen, color, chip, border_radius=4)
         self.screen.blit(label, (chip.x + 7, chip.y + 3))
-
-    # ------------------------------------------------------------------
-    # Input
-    # ------------------------------------------------------------------
 
     def handle_mouse_down(self, pos, button):
         if self.is_drum_selected() and not self.popup_open():

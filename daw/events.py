@@ -36,9 +36,6 @@ class EventsMixin:
     def handle_keydown(self, event):
         key = event.key
 
-        # --------------------------------------------------------------
-        # Track-name popup text entry
-        # --------------------------------------------------------------
         if self.naming_track:
             if self.track_name_focused:
                 if key == pygame.K_RETURN:
@@ -69,9 +66,6 @@ class EventsMixin:
 
             return
 
-        # --------------------------------------------------------------
-        # Track context menu / settings popup gate other keys while open
-        # --------------------------------------------------------------
         if self.track_context_menu is not None:
             if key == pygame.K_ESCAPE:
                 self.track_context_menu = None
@@ -82,9 +76,6 @@ class EventsMixin:
                 self.show_track_settings = False
             return
 
-        # --------------------------------------------------------------
-        # BPM text entry
-        # --------------------------------------------------------------
         if self.editing_bpm:
             if key == pygame.K_RETURN:
                 try:
@@ -113,9 +104,6 @@ class EventsMixin:
 
             return
 
-        # --------------------------------------------------------------
-        # Help / menu
-        # --------------------------------------------------------------
         if self.show_help:
             if key == pygame.K_ESCAPE:
                 self.show_help = False
@@ -136,9 +124,6 @@ class EventsMixin:
                 self.show_menu = False
             return
 
-        # --------------------------------------------------------------
-        # General keyboard controls
-        # --------------------------------------------------------------
         if key == pygame.K_SPACE:
             self.toggle_play()
             return

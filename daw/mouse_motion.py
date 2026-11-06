@@ -63,9 +63,6 @@ class MouseMotionMixin:
             elif self.instr_subpanel_rect().collidepoint(pos):
                 return
 
-        # --------------------------------------------------------------
-        # Drum track hover
-        # --------------------------------------------------------------
         if self.show_tracks_dropdown:
             panel = self.tracks_panel_rect()
 
@@ -142,9 +139,6 @@ class MouseMotionMixin:
             valid = True
             new_notes = []
 
-            # ----------------------------------------------------------
-            # Calculate the resized version of every selected note
-            # ----------------------------------------------------------
             for pitch, start, length in selected_orig:
 
                 if edge == "right":
@@ -190,9 +184,6 @@ class MouseMotionMixin:
 
                 new_notes.append(new_note)
 
-            # ----------------------------------------------------------
-            # Check for collisions with non-selected notes
-            # ----------------------------------------------------------
             selected_set = set(selected_orig)
 
             for pitch, start, length in new_notes:
@@ -223,9 +214,6 @@ class MouseMotionMixin:
 
             selected_orig = m["selected_orig"]
 
-            # ----------------------------------------------------------
-            # Keep the entire selection inside the piano roll
-            # ----------------------------------------------------------
             min_start = min(note[1] for note in selected_orig)
             max_end = max(note[1] + note[2] for note in selected_orig)
 
@@ -235,9 +223,6 @@ class MouseMotionMixin:
             if max_end + delta_steps > self.total_steps:
                 delta_steps = self.total_steps - max_end
 
-            # ----------------------------------------------------------
-            # Keep the entire selection inside the pitch range
-            # ----------------------------------------------------------
             min_pitch = min(note[0] for note in selected_orig)
             max_pitch = max(note[0] for note in selected_orig)
 
@@ -247,9 +232,6 @@ class MouseMotionMixin:
             if min_pitch - delta_rows < MIN_NOTE:
                 delta_rows = min_pitch - MIN_NOTE
 
-            # ----------------------------------------------------------
-            # Check for collisions with notes that aren't selected
-            # ----------------------------------------------------------
             valid = True
             selected_set = set(selected_orig)
 
@@ -266,9 +248,6 @@ class MouseMotionMixin:
                     valid = False
                     break
 
-            # ----------------------------------------------------------
-            # Store movement information
-            # ----------------------------------------------------------
             m["current_delta_steps"] = delta_steps
             m["current_delta_rows"] = delta_rows
             m["valid"] = valid

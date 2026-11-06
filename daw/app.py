@@ -219,10 +219,6 @@ class PianoRollApp(
         self.customNUM = 0
         self.trackNUM = 1
 
-    # ------------------------------------------------------------------
-    # Properties
-    # ------------------------------------------------------------------
-
     @property
     def track(self):
         return self.tracks[self.current_track_index]
@@ -264,19 +260,11 @@ class PianoRollApp(
     def max_scroll_y(self):
         return max(0, TOTAL_ROWS * ROW_HEIGHT - (self.viewport_h - GRID_Y))
 
-    # ------------------------------------------------------------------
-    # Status line
-    # ------------------------------------------------------------------
-
     def set_status(self, message, error=False):
         self.status_message = message
         self.status_until = pygame.time.get_ticks() + 3500
         if error:
             print(message, file=sys.stderr)
-
-    # ------------------------------------------------------------------
-    # Main loop
-    # ------------------------------------------------------------------
 
     def run(self):
         while self.running:

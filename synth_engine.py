@@ -325,9 +325,6 @@ class Voice:
     def render(self, n):
         env = self.envelope.next_samples(n)
 
-        # ----------------------------------------------------------
-        # Sample-based voice
-        # ----------------------------------------------------------
         if self.sample is not None:
             wave = self.sample.get_samples(
                 self.sample_position,
@@ -345,9 +342,6 @@ class Voice:
                 * self.velocity
             )
 
-        # ----------------------------------------------------------
-        # Synthesized voice
-        # ----------------------------------------------------------
         phase_inc = self.freq / SAMPLE_RATE
 
         phases = (
@@ -474,10 +468,6 @@ class SynthEngine:
         self._voices = {}
         self._lock = threading.Lock()
 
-        # ----------------------------------------------------------
-        # Sample instruments
-        # ----------------------------------------------------------
-
         if sample_root is None:
             sample_root = resource_path("Samples")
 
@@ -503,10 +493,6 @@ class SynthEngine:
         # }
         self._samples = {}
 
-    # ==========================================================
-    # Synth settings
-    # ==========================================================
-
     def set_waveform(self, name):
         if name not in WAVEFORMS:
             raise ValueError(
@@ -518,10 +504,6 @@ class SynthEngine:
 
     def set_adsr(self, **kwargs):
         self.adsr_params.update(kwargs)
-
-    # ==========================================================
-    # Instrument loading
-    # ==========================================================
 
     def set_instrument(self, name):
         """
@@ -653,19 +635,11 @@ class SynthEngine:
                         + piano_notes[pitch_name]
                 )
 
-            # ------------------------------------------------------
-            # Validate MIDI note
-            # ------------------------------------------------------
-
             if midi_note is None:
                 continue
 
             if not 0 <= midi_note <= 127:
                 continue
-
-            # ------------------------------------------------------
-            # Load sample
-            # ------------------------------------------------------
 
             path = os.path.join(
                 folder,
@@ -768,10 +742,6 @@ class SynthEngine:
         if not samples:
             return None, None
 
-        # ----------------------------------------------------------
-        # Find the closest sample by MIDI distance.
-        # ----------------------------------------------------------
-
         closest_note = min(
             samples.keys(),
             key=lambda sample_note: abs(sample_note - note)
@@ -781,10 +751,6 @@ class SynthEngine:
             samples[closest_note],
             closest_note
         )
-
-    # ==========================================================
-    # Notes
-    # ==========================================================
 
     def note_on(self, note, velocity=100):
         with self._lock:
@@ -821,10 +787,6 @@ class SynthEngine:
             for voice in self._voices.values():
                 voice.note_off()
 
-    # ==========================================================
-    # Audio rendering
-    # ==========================================================
-
     def render(self, n):
         mix = np.zeros(
             n,
@@ -832,10 +794,6 @@ class SynthEngine:
         )
 
         with self._lock:
-
-            # ------------------------------------------------------
-            # Piano / synth voices
-            # ------------------------------------------------------
 
             dead = []
 
@@ -848,10 +806,6 @@ class SynthEngine:
             for note in dead:
                 del self._voices[note]
 
-            # ------------------------------------------------------
-            # Drum voices
-            # ------------------------------------------------------
-
             dead_drums = []
 
             for drum_voice in self._drum_voices:
@@ -862,10 +816,6 @@ class SynthEngine:
 
             for drum_voice in dead_drums:
                 self._drum_voices.remove(drum_voice)
-
-        # ----------------------------------------------------------
-        # Master volume
-        # ----------------------------------------------------------
 
         mix *= self.master_volume
 

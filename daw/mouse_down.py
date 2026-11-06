@@ -7,9 +7,7 @@ from .config import *
 
 class MouseDownMixin:
     def handle_mouse_down(self, pos, button):
-        # --------------------------------------------------------------
-        # Track-name popup
-        # --------------------------------------------------------------
+
         if self.naming_track:
             panel_w = 500
             panel_h = 260
@@ -54,9 +52,6 @@ class MouseDownMixin:
 
             return
 
-        # --------------------------------------------------------------
-        # Track settings popup
-        # --------------------------------------------------------------
         if self.show_track_settings:
             panel = self.track_settings_panel_rect()
             close_rect = pygame.Rect(panel.right - 30, panel.y + 8, 22, 22)
@@ -89,16 +84,10 @@ class MouseDownMixin:
 
             return
 
-        # --------------------------------------------------------------
-        # Track right-click context menu
-        # --------------------------------------------------------------
         if self.track_context_menu is not None:
             self.handle_track_context_menu_click(pos)
             return
 
-        # --------------------------------------------------------------
-        # Help window
-        # --------------------------------------------------------------
         if self.show_help:
             help_w = min(700, self.viewport_w - 80)
             help_h = min(500, self.viewport_h - 80)
@@ -109,9 +98,6 @@ class MouseDownMixin:
 
             return
 
-        # --------------------------------------------------------------
-        # Menu
-        # --------------------------------------------------------------
         if self.show_menu:
             menu_rect = self.menu_panel_rect()
 
@@ -142,15 +128,9 @@ class MouseDownMixin:
 
             return
 
-        # --------------------------------------------------------------
-        # Dropdown panels
-        # --------------------------------------------------------------
         if self.show_tracks_dropdown:
             panel = self.tracks_panel_rect()
 
-            # ----------------------------------------------------------
-            # DRUM SUBMENU
-            # ----------------------------------------------------------
             if self.hovered_drum_track is not None:
                 drum_track = self.tracks[self.hovered_drum_track]
 
@@ -202,9 +182,6 @@ class MouseDownMixin:
 
                     return
 
-            # ----------------------------------------------------------
-            # MAIN TRACK DROPDOWN
-            # ----------------------------------------------------------
             if not panel.collidepoint(pos):
                 self.show_tracks_dropdown = False
                 self.hovered_drum_track = None
@@ -240,9 +217,6 @@ class MouseDownMixin:
                         self.update_toolbar_labels()
                         return
 
-                # ----------------------------------------------------------
-                # ADD TRACK
-                # ----------------------------------------------------------
                 add_row = pygame.Rect(
                     panel.x,
                     panel.y + 4 + len(self.tracks) * DROPDOWN_ROW_H,
@@ -297,17 +271,11 @@ class MouseDownMixin:
             self.hovered_instrument_category = None
             return
 
-        # --------------------------------------------------------------
-        # Master volume
-        # --------------------------------------------------------------
         if button == 1 and self.master_volume_slider_rect().collidepoint(pos):
             self.dragging_master_volume = True
             self.update_master_volume_from_mouse(pos)
             return
 
-        # --------------------------------------------------------------
-        # Toolbar
-        # --------------------------------------------------------------
         if self.btn_play.contains(pos):
             self.btn_play.flash()
             self.toggle_play()
@@ -353,9 +321,6 @@ class MouseDownMixin:
             self.close_dropdowns()
             return
 
-        # --------------------------------------------------------------
-        # Playhead click-and-drag in the timeline ruler
-        # --------------------------------------------------------------
         if (
                 button == 1
                 and TOP_BAR_H <= pos[1] < GRID_Y
@@ -365,15 +330,9 @@ class MouseDownMixin:
             self.set_playhead_from_mouse(pos[0])
             return
 
-        # --------------------------------------------------------------
-        # BPM / toolbar area
-        # --------------------------------------------------------------
         if pos[1] < GRID_Y:
             return
 
-        # --------------------------------------------------------------
-        # Piano keyboard
-        # --------------------------------------------------------------
         if pos[0] < KEY_AREA_WIDTH:
             row = self.screen_y_to_row(pos[1])
 
@@ -386,18 +345,12 @@ class MouseDownMixin:
 
                 return
 
-        # --------------------------------------------------------------
-        # Playhead ruler — click or grab the playhead triangle
-        # --------------------------------------------------------------
         if button == 1 and TOP_BAR_H <= pos[1] < GRID_Y:
             if pos[0] >= KEY_AREA_WIDTH:
                 self.dragging_playhead = True
                 self.set_playhead_from_mouse(pos[0])
                 return
 
-        # --------------------------------------------------------------
-        # Piano-roll grid
-        # --------------------------------------------------------------
         row = self.screen_y_to_row(pos[1])
 
         if not (0 <= row < TOTAL_ROWS):

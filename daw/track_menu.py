@@ -7,9 +7,6 @@ from .theme import *
 
 
 class TrackMenuMixin:
-    # ------------------------------------------------------------------
-    # Track right-click context menu (Mute / Solo / Settings / Delete)
-    # ------------------------------------------------------------------
 
     def track_context_menu_rect(self):
         if self.track_context_menu is None:
@@ -244,10 +241,6 @@ class TrackMenuMixin:
             return numerator * 2
 
         return STEPS_PER_MEASURE
-
-    # ------------------------------------------------------------------
-    # Track settings popup (Bass / Mid / Treble)
-    # ------------------------------------------------------------------
 
     def track_settings_panel_rect(self):
         w, h = 380, 380
