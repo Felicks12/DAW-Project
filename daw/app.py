@@ -22,6 +22,7 @@ from .paths import resource_path
 from .playback import PlaybackMixin
 from .preview import PreviewMixin
 from .project_io import ProjectIOMixin
+from .time_signature import TimeSignatureMixin
 from .toolbar import ToolbarMixin
 from .track_menu import TrackMenuMixin
 from .track_naming import TrackNamingMixin
@@ -30,6 +31,7 @@ from .viewport import ViewportMixin
 
 
 class PianoRollApp(
+    TimeSignatureMixin,   # wraps handle_mouse_down / draw_track_settings; keep first
     ToolbarMixin,
     ViewportMixin,
     PlaybackMixin,
@@ -64,7 +66,10 @@ class PianoRollApp(
         self.playhead_delay = 0
         self.playback_start_time = 0.0
         self.last_playback_step = -1
-        self.audio_lead = 0.20
+        # Notes are triggered when the playback clock reaches their step.
+        # A non-zero lead fired notes early (and bunched the first steps
+        # together on Play) because notes can't be scheduled ahead of time.
+        self.audio_lead = 0.0
 
         self.windowed_size = (DEFAULT_WINDOW_W, DEFAULT_WINDOW_H)
         self.fullscreen = False

@@ -130,6 +130,16 @@ class ToolbarMixin:
     def update_toolbar_labels(self):
         self.btn_play.label = "Pause" if self.playing else "Play"
         self.btn_instr.label = self.track.instrument
+
+        # Drum tracks have a fixed kit, so the instrument picker is greyed out
+        # (a disabled Button ignores clicks) and its dropdown is kept closed.
+        is_drum = getattr(self.track, "is_drum_track", False)
+        self.btn_instr.disabled = is_drum
+
+        if is_drum:
+            self.show_instr_dropdown = False
+            self.hovered_instrument_category = None
+
         self.reposition_toolbar()
 
     def draw_toolbar(self):
